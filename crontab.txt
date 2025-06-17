@@ -1,0 +1,2 @@
+# crontab -e
+0 3 * * * /usr/bin/python3 /app/train_recommendation_model.py >> /var/log/train_model.log 2>&1
