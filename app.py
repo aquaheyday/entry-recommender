@@ -60,9 +60,9 @@ def recommend_items(req: RecommendationRequest):
 
     # 최신 버전 디렉토리 기준으로 경로 설정
     version = os.path.basename(latest_dir)  # e.g. "v3"
-    model_path     = os.path.join(latest_dir, f"model_{req.site_id}.pkl")
-    user_map_path  = os.path.join(latest_dir, f"user_map_{req.site_id}.pkl")
-    item_map_path  = os.path.join(latest_dir, f"item_map_{req.site_id}.pkl")
+    model_path     = os.path.join(latest_dir, f"model.pkl")
+    user_map_path  = os.path.join(latest_dir, f"user_map.pkl")
+    item_map_path  = os.path.join(latest_dir, f"item_map.pkl")
 
     # 모델 파일 존재 확인
     for p in (model_path, user_map_path, item_map_path):
