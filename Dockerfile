@@ -1,6 +1,5 @@
-FROM python:3.10-slim
+FROM python:3.10-slim AS base
 
-# 필수 빌드 도구 설치
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
@@ -11,19 +10,30 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     git \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/*
 
-# 작업 디렉토리 설정
 WORKDIR /app
 
-# pip 최신화 및 패키지 설치
+# Python이 /app 하위의 app/ 패키지를 찾도록 설정
+ENV PYTHONPATH=/app
+
+# 의존성 설치
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt \
+ && pip install --no-cache-dir gunicorn
 
-# 소스 코드 복사
-COPY . .
+# 애플리케이션 코드 복사
+COPY app/    app/
+COPY core/   core/
+COPY scripts/ scripts/
+RUN mkdir models
 
-# 포트 노출 및 FastAPI 실행
+# 환경변수 파일 복사(.env)
+COPY .env .
+
+VOLUME ["/app/models"]
 EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Gunicorn + Uvicorn 워커로 프로덕션 서버 구동
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers", "4", "app.main:app"]
