@@ -1,22 +1,22 @@
 import pandas as pd
 from clickhouse_driver import Client
 
-def load_clickhouse_events(site_filter: str = None) -> pd.DataFrame:
+def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
     client = Client(host='clickhouse', port=9000, database='tracking')
     query = """
     SELECT anon_id, product_code, tracking_type
       FROM tracking.trackings
      WHERE common_ts >= now() - INTERVAL 30 DAY
     """
-    if site_filter:
-        sf = site_filter.replace("'", "''")
-        query += f" AND site_id = '{sf}'"
+    if tracking_filter:
+        sf = tracking_filter.replace("'", "''")
+        query += f" AND tracking_key = '{sf}'"
     rows = client.execute(query)
     return pd.DataFrame(rows, columns=['anon_id','product_code','tracking_type'])
 
-def load_clickhouse_item_metadata(site_filter: str) -> pd.DataFrame:
+def load_clickhouse_item_metadata(tracking_filter: str) -> pd.DataFrame:
     """
-    tracking.trackings 테이블에서 site_id 기준으로
+    tracking.trackings 테이블에서 tracking_id 기준으로
     distinct product_code별 카테고리 메타데이터를 로드합니다.
     """
     client = Client(host='clickhouse', port=9000, database='tracking')
@@ -29,7 +29,7 @@ def load_clickhouse_item_metadata(site_filter: str) -> pd.DataFrame:
         anyHeavy(product_category_2_name) AS category_2,
         anyHeavy(product_category_3_name) AS category_3
     FROM tracking.trackings
-    WHERE site_id = '{site_filter}'
+    WHERE tracking_key = '{tracking_filter}'
       AND product_code IS NOT NULL
     GROUP BY product_code
     """

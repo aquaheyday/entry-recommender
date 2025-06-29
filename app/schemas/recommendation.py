@@ -2,11 +2,11 @@ from pydantic import BaseModel
 from typing import List
 
 class RecommendationRequest(BaseModel):
-    site_id: str
+    tracking_key: str
     top_k: int = 10
 
 class RecommendationResponse(BaseModel):
-    site_id: str
+    tracking_key: str
     recommended_items: List[str]
 
 class TrainResponse(BaseModel):

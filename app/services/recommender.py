@@ -11,41 +11,40 @@ from core.data_loader.clickhouse import (
 from core.preprocess.transformer import transform_interaction_matrix
 from core.model.lightfm_trainer import load_latest_model
 from app.schemas.recommendation import RecommendationResponse
-from app.utils.clickhouse import load_clickhouse_events
 
 logger = logging.getLogger(__name__)
 
-def get_recommendations(site_id: str, top_k: int):
+def get_recommendations(tracking_key: str, top_k: int):
     """
     사이트 전체 이벤트로부터 인기 상품 top_k 리스트를 반환합니다.
     """
-    df = load_clickhouse_events(site_filter=site_id)
+    df = load_clickhouse_events(tracking_filter=tracking_key)
     if df is None or df.empty:
-        logger.info("No events for site %s, returning empty list", site_id)
-        return {"site_id": site_id, "recommended_items": []}
+        logger.info("No events for site %s, returning empty list", tracking_key)
+        return {"tracking_key": tracking_key, "recommended_items": []}
 
     # 상품코드별 빈도 집계
     counts = df["product_code"].value_counts()
     top_items = counts.head(top_k).index.tolist()
-    logger.info("Top %d popular items for site %s: %s", top_k, site_id, top_items)
+    logger.info("Top %d popular items for site %s: %s", top_k, tracking_key, top_items)
 
-    return {"site_id": site_id, "recommended_items": top_items}
+    return {"tracking_key": tracking_key, "recommended_items": top_items}
 
 def get_interest_based_recommendations(
-    site_id: str,
+    tracking_key: str,
     user_id: str,
     top_k: int
 ) -> RecommendationResponse:
     # 1) 사이트 전체 이벤트 로드 + 사용자 필터링
-    df = load_clickhouse_events(site_filter=site_id)
+    df = load_clickhouse_events(tracking_filter=tracking_key)
     df_user = df[df["anon_id"] == user_id]
 
     # 폴백: 히스토리 없으면 전체 추천으로 대체
     if df_user.empty:
-        return get_recommendations(site_id, top_k)
+        return get_recommendations(tracking_key, top_k)
 
     # 2) 카테고리 메타데이터 로드 & 병합
-    meta = load_clickhouse_item_metadata(site_filter=site_id)
+    meta = load_clickhouse_item_metadata(tracking_filter=tracking_key)
     df_user = df_user.merge(meta, on="item_id", how="left")
 
     # 상위 3개 카테고리 추출
