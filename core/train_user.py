@@ -22,7 +22,7 @@ def train_model_for_site(tracking_key: str) -> dict:
 
     # 저장 경로 설정 (기본 /app/models 또는 설정값)
     base_dir = settings.MODEL_BASE_DIR or "/app/models"
-    site_dir = os.path.join(base_dir, f"{tracking_key}")
+    site_dir = os.path.join(base_dir, f"lightfm/{tracking_key}")
     os.makedirs(site_dir, exist_ok=True)
 
     # 버전 자동 관리: 기존 v* 폴더 중 최대 +1
