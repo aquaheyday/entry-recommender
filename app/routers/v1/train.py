@@ -1,13 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 from app.services.trainer import train_site_model
-from ..schemas.recommendation import TrainResponse
+from app.schemas.recommendation import TrainResponse
 
 router = APIRouter(
-    prefix="/train",
+    prefix="/v1",
     tags=["Training"]
 )
 
-@router.post("/{site_id}", response_model=TrainResponse)
+@router.post("/sites/{site_id}/models", response_model=TrainResponse)
 def train_user_model(site_id: str):
     try:
         return train_site_model(site_id)

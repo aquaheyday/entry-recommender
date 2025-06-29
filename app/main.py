@@ -3,7 +3,8 @@ from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI
 from app.config import settings
 from app.lifecycle import on_startup, on_shutdown
-from app.routers import train, recommend
+from app.routers.v1 import recommend, train
+from fastapi.middleware.cors import CORSMiddleware
 
 # 로깅 설정 (생략 가능)
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,14 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],            # 개발 중에는 "*"를, 운영 시에는 쇼핑몰 도메인만 명시
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 # 모델별 라우터 포함
