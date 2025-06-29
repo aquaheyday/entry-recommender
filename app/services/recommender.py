@@ -57,7 +57,7 @@ def get_interest_based_recommendations(
     )
 
     # 3) 최신 모델 로드
-    model_dir = os.path.join(os.getenv("MODEL_BASE_DIR", "/app/models"), f"site-{site_id}")
+    model_dir = os.path.join(os.getenv("MODEL_BASE_DIR", "/app/models"), f"{tracking_key}")
     model, user_map, item_map = load_latest_model(model_dir)
 
     if user_id not in user_map:

@@ -3,7 +3,7 @@ from ..config import settings
 
 def find_latest_version_dir(site_id: str, base_dir: str = None) -> str:
     """
-    프로젝트 루트의 'models' 디렉터리 아래에 있는 'site-{site_id}/v*' 중 가장 최신 버전을 반환합니다.
+    프로젝트 루트의 'models' 디렉터리 아래에 있는 '{site_id}/v*' 중 가장 최신 버전을 반환합니다.
     settings.MODEL_BASE_DIR이 설정되어 있으면 해당 경로를, 아니면 프로젝트 루트의 'models'를 기본으로 사용합니다.
     """
     # 기본 모델 베이스 디렉터리 결정
@@ -17,7 +17,7 @@ def find_latest_version_dir(site_id: str, base_dir: str = None) -> str:
         base = os.path.join(project_root, 'models')
 
     base = os.path.abspath(base)
-    site_dir = os.path.join(base, f"site-{site_id}")
+    site_dir = os.path.join(base, f"{site_id}")
     if not os.path.isdir(site_dir):
         raise FileNotFoundError(f"{site_dir} not found")
 

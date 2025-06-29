@@ -12,7 +12,7 @@ def load_latest_model(
     model_dir: str
 ) -> Tuple[Any, Dict[str, int], Dict[int, str]]:
     """
-    model_dir/site-{site_id} 아래 버전별 디렉터리(v1, v2, ...) 중
+    model_dir/{site_id} 아래 버전별 디렉터리(v1, v2, ...) 중
     최신 버전의 모델, user_map, item_map을 로드하여 반환합니다.
     """
     # v* 디렉터리 목록 수집
