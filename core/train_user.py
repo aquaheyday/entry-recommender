@@ -1,9 +1,9 @@
 import os
 import pickle
 from fastapi import HTTPException
-from .data_loader.clickhouse import load_clickhouse_events
-from .preprocess.transformer import transform_interaction_matrix
-from .model.lightfm_trainer import train_model
+from core.data_loader.clickhouse import load_clickhouse_events
+from core.preprocess.transformer import transform_interaction_matrix
+from core.model.lightfm_trainer import train_model
 from app.config import settings
 
 def train_model_for_site(site_id: str) -> dict:

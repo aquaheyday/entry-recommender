@@ -7,11 +7,9 @@ class RecommendationRequest(BaseModel):
 
 class RecommendationResponse(BaseModel):
     site_id: str
-    version: str
-    recommended_items: List[int]
+    recommended_items: List[str]
 
 class TrainResponse(BaseModel):
-    site_id: str
     version: str
     model_path: str
     user_map_path: str

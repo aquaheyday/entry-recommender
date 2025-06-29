@@ -1,9 +1,16 @@
+import logging
+from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI
 from app.config import settings
 from app.lifecycle import on_startup, on_shutdown
 from app.routers import train, recommend
 
+# 로깅 설정 (생략 가능)
+logging.basicConfig(level=logging.INFO)
+file_handler = RotatingFileHandler("/app/logs/app.log", maxBytes=10*1024*1024, backupCount=3)
+logging.getLogger().addHandler(file_handler)
 app = FastAPI(
+    debug=True,
     title="Recommendation Service",
     version="1.0.0",
     on_startup=[on_startup],
@@ -13,5 +20,6 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-app.include_router(train.router, prefix="/train", tags=["Training"])
-app.include_router(recommend.router, prefix="/recommend", tags=["Recommend"])
+# 모델별 라우터 포함
+app.include_router(train.router)
+app.include_router(recommend.router)

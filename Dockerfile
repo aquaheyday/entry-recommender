@@ -17,6 +17,9 @@ WORKDIR /app
 # Python이 /app 하위의 app/ 패키지를 찾도록 설정
 ENV PYTHONPATH=/app
 
+# 로그 디렉터리 생성
+RUN mkdir -p /app/logs && chmod 755 /app/logs
+
 # 의존성 설치
 COPY requirements.txt .
 RUN pip install --upgrade pip \
