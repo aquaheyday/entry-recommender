@@ -10,7 +10,25 @@ router = APIRouter(
     tags=["Recommendations"]
 )
 
+
+@router.get(
+    "/recommendations",
+    response_model=RecommendationResponse,
+)
+def recommendations(
+    tracking_key: str = Query(..., description="트래킹 key"),
+    anon_id: str = Query(..., description="익명 사용자 ID"),
+    lang: str = Query("und", description="언어 코드 (예: ko, en)"),
+    top_k: int = Query(10, ge=1, le=100, description="추천 개수")
+):
+    try:
+        # 히스토리 있는 유저 → 관심 기반, 없으면 인기
+        return get_interest_based_recommendations(tracking_key, anon_id, lang, top_k)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # 1) 사용자 별 관심 기반 추천 (쿼리파라미터 방식)
+"""
 @router.get(
     "/recommendations",
     response_model=RecommendationResponse,
@@ -25,3 +43,4 @@ def get_user_interest_recommendations(
         return get_interest_based_recommendations(tracking_key, anon_id, lang, top_k)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+"""
