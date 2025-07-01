@@ -8,7 +8,7 @@ from core.data_loader.clickhouse import (
     load_clickhouse_item_metadata
 )
 from core.model.lightfm_trainer import load_latest_model
-from core.utils.model_path import find_latest_version_dir
+from app.utils.model_utils import find_latest_version_dir
 from app.schemas.recommendation import RecommendationResponse
 
 logger = logging.getLogger(__name__)
