@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
-from app.services.trainer import train_site_model
-from app.schemas.recommendation import TrainResponse
+from fastapi import APIRouter
+from app.schemas.train import TrainResponse
+from app.services.trainer import train_models_for_site
 
 router = APIRouter(
     prefix="/v1",
@@ -8,16 +8,16 @@ router = APIRouter(
 )
 
 @router.post(
-    "/models",        # 기존 "/sites/{site_id}/models" 에서 변경
-    response_model=TrainResponse
+    "/sites/{tracking_key}/models",
+    response_model=TrainResponse,
 )
-def train_user_model(
-    tracking_key: str = Query(..., description="학습할 사이트의 ID")
-):
+async def train_site_model_endpoint(tracking_key: str):
     """
-    POST /v1/models?site_id=6
+    언어별로 학습된 모델을 돌려줍니다.
     """
-    try:
-        return train_site_model(tracking_key)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    results = train_models_for_site(tracking_key)
+    # results 예시: { "ko": {...}, "en": {...}, "und": {...} }
+    return {
+        "tracking_key": tracking_key,
+        "models": results
+    }

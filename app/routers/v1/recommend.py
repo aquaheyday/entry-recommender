@@ -17,10 +17,11 @@ router = APIRouter(
 )
 def get_user_interest_recommendations(
     tracking_key: str = Query(..., description="트래킹 key"),
-    user_id: str = Query(..., description="사용자 ID"),
+    anon_id: str = Query(..., description="사용자 ID"),
+    lang: str = Query("und", description="언어 코드 (예: ko, en)"),
     top_k: int = Query(10, ge=1, le=100, description="조회할 추천 개수")
 ):
     try:
-        return get_interest_based_recommendations(tracking_key, user_id, top_k)
+        return get_interest_based_recommendations(tracking_key, anon_id, lang, top_k)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
