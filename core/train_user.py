@@ -1,5 +1,6 @@
 import os
 import pickle
+import pandas as pd
 from fastapi import HTTPException
 from core.data_loader.clickhouse import load_clickhouse_events
 from core.preprocess.transformer import transform_interaction_matrix
