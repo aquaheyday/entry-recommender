@@ -17,6 +17,17 @@ def train_models_for_site(tracking_key: str) -> dict:
     if df.empty:
         raise HTTPException(status_code=400, detail=f"No events for site {tracking_key}")
 
+    # ◀ common_ts를 datetime으로 변환
+    df['common_ts'] = pd.to_datetime(df['common_ts'])
+
+    # --- 상품 메타를 한 번만 뽑아서 dict로 저장 ---
+    # ① common_ts 내림차순 정렬 → 같은 product_code 중 맨 앞 행(=최신)만 남기기
+    meta_df = (
+        df
+        .sort_values(['product_code', 'common_ts'], ascending=[True, False])
+        .drop_duplicates(subset=["product_code"], keep='first')
+    )
+
     base_dir = settings.MODEL_BASE_DIR or "/app/models/lightfm"
     site_root = os.path.join(base_dir, f"{tracking_key}")
     os.makedirs(site_root, exist_ok=True)
@@ -33,7 +44,7 @@ def train_models_for_site(tracking_key: str) -> dict:
     # --- 상품 메타를 한 번만 뽑아서 dict로 저장 ---
     # drop_duplicates로 product_code별 첫 행만 남기고 to_dict
     meta_dict = (
-        df
+        meta_df
         .drop_duplicates(subset=["product_code"])
         .set_index("product_code")[
             [

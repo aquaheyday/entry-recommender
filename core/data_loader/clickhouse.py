@@ -60,7 +60,8 @@ def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
       tracking_type,
       common_page_language,
       common_site_domain,
-      common_protocol
+      common_protocol,
+      common_ts
     FROM tracking.trackings
     WHERE common_ts >= now() - INTERVAL 30 DAY
     AND product_code IS NOT NULL
@@ -90,7 +91,8 @@ def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
             'tracking_type',
             'common_page_language',
             'common_site_domain',
-            'common_protocol'
+            'common_protocol',
+            'common_ts'
         ]
     )
 
