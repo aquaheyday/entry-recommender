@@ -72,8 +72,8 @@ def get_recommendations(
                 product_category_3_name=meta["product_category_3_name"],
                 tracking_type=meta.get("tracking_type", ""),
                 common_page_language=meta.get("common_page_language", ""),
-                site_domain=meta["site_domain"],
-                protocol=meta["protocol"],
+                common_site_domain=meta["common_site_domain"],
+                common_protocol=meta["common_protocol"],
             )
         )
 
