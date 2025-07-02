@@ -1,39 +1,85 @@
 import os
 import numpy as np
-import pandas as pd
 import logging
+import pickle
+from functools import lru_cache
 from fastapi import HTTPException
-from core.data_loader.clickhouse import (
-    load_clickhouse_events,
-    load_clickhouse_item_metadata
-)
 from core.model.lightfm_trainer import load_latest_model
 from app.utils.model_utils import find_latest_version_dir
-from app.schemas.recommendation import RecommendationResponse
+from app.schemas.recommendation import RecommendationResponse, RecommendationItem
+from core.data_loader.clickhouse import load_popular_items, load_clickhouse_item_metadata, load_item_metadata_full
 
 logger = logging.getLogger(__name__)
 
+# 1) 모델 로드 캐시 (v{n}/{lang} 단위)
+@lru_cache(maxsize=128)
+def _load_model_cached(model_dir: str):
+    logger.info(f"📦 캐시에서 모델 로딩: {model_dir}")
+    return load_latest_model(model_dir)
+
+# 1) 인기메타 캐시: tracking_key별로 한 번만 전체 메타를 dict로 로드
+@lru_cache(maxsize=64)
+def _load_full_meta_cached(tracking_key: str, lang: str | None = None) -> dict[str, dict]:
+    """
+    ClickHouse에서 tracking_key에 대한 전체 item metadata를 불러와
+    {product_code: {...메타...}} 형태로 반환합니다.
+    """
+    df = load_item_metadata_full(tracking_key, lang)
+    df = df.fillna("")  # NaN 방지
+    return df.set_index("product_code").to_dict(orient="index")
+
 def get_recommendations(
     tracking_key: str,
+    anon_id: str,
+    lang: str = "und",
     top_k: int = 10
 ) -> RecommendationResponse:
     """
-    사이트 전체 이벤트로부터 인기 상품을 뽑아 반환합니다.
+    인기 상품 추천 (ClickHouse 집계 + cached 메타 조회)
     """
-    df = load_clickhouse_events(tracking_filter=tracking_key)
-    if df is None or df.empty:
-        return RecommendationResponse(
-            tracking_key=tracking_key,
-            recommended_items=[]
+    logger.info("✔️ 인기 상품 추천 로직 실행")
+
+    # 1) 인기 순위 조회 (product_code 리스트)
+    df_pop = load_popular_items(tracking_key, top_k=top_k)
+    codes: List[str] = df_pop["product_code"].tolist()
+
+    # 2) 전체 메타 딕셔너리 (cached)
+    full_meta = _load_full_meta_cached(tracking_key, lang)
+
+    # 3) RecommendationItem 생성
+    items: List[RecommendationItem] = []
+    for code in codes:
+        meta = full_meta.get(code)
+        if not meta:
+            logger.warning(f"인기추천 메타 없음: {code}")
+            continue
+
+        items.append(
+            RecommendationItem(
+                anon_id=anon_id,
+                product_code=code,
+                product_name=meta["product_name"],
+                product_price=meta["product_price"],
+                product_dc_price=meta["product_dc_price"],
+                product_sold_out=meta["product_sold_out"],
+                product_image_url=meta["product_image_url"],
+                product_brand=meta["product_brand"],
+                product_category_1_code=meta["product_category_1_code"],
+                product_category_1_name=meta["product_category_1_name"],
+                product_category_2_code=meta["product_category_2_code"],
+                product_category_2_name=meta["product_category_2_name"],
+                product_category_3_code=meta["product_category_3_code"],
+                product_category_3_name=meta["product_category_3_name"],
+                tracking_type=meta.get("tracking_type", ""),
+                common_page_language=meta.get("common_page_language", ""),
+            )
         )
 
-    counts = df["product_code"].value_counts()
-    items = counts.head(top_k).index.tolist()
     return RecommendationResponse(
         tracking_key=tracking_key,
+        anon_id=anon_id,
         recommended_items=items
     )
-
 
 def get_interest_based_recommendations(
     tracking_key: str,
@@ -42,168 +88,75 @@ def get_interest_based_recommendations(
     top_k: int = 10
 ) -> RecommendationResponse:
     """
-    학습된 모델을 활용해 사용자별 관심 기반 추천을 반환합니다.
+    학습된 LightFM 모델을 사용해 관심 기반 추천을 반환합니다.
+    추천된 상품의 모든 메타(이름, 가격, 이미지 등)는
+    학습 시 저장한 item_meta.pkl 에서 바로 가져옵니다.
     """
-    # --- 1) 이벤트 로드 & 필터링 ---
-    df = load_clickhouse_events(tracking_filter=tracking_key)
-    if df is None or df.empty:
-        return RecommendationResponse(tracking_key=tracking_key, recommended_items=[])
-
-    if "common_page_language" in df.columns:
-        df = df[df["common_page_language"] == lang]
-
-    df_user = df[df["anon_id"] == anon_id]
-    if df_user.empty:
-        # 유저 히스토리 없으면 인기 추천으로 백업
-        return get_recommendations(tracking_key, top_k)
-
-    # --- 2) 메타 로드 & 병합 ---
-    meta = load_clickhouse_item_metadata(tracking_filter=tracking_key)
-    df_user = df_user.merge(meta, left_on="product_code", right_on="product_code", how="left")
-
-    # --- 3) 모델 디렉터리 찾기 & 로드 ---
     base = os.getenv("MODEL_BASE_DIR", "/app/models")
+    # 1) 최신 모델 디렉터리 찾기
     try:
-        model_dir = find_latest_version_dir(site_id=tracking_key, lang=lang, base_dir=base)
+        model_dir = find_latest_version_dir(tracking_key, lang, base)
     except FileNotFoundError:
-        logger.warning("언어별 모델 없음, 인기 추천으로 대체")
-        return get_recommendations(tracking_key, top_k)
+        logger.warning("모델 디렉터리 없음 → 인기추천으로 폴백")
+        return get_recommendations(tracking_key, anon_id, lang, top_k)
 
-    model, user_map, item_map = load_latest_model(model_dir)
-
-    if anon_id not in user_map:
-        raise HTTPException(404, f"User {anon_id} not in model for {lang}")
-
-    # --- 4) 예측 & 정렬 ---
-    uid = user_map[anon_id]
-    scores = model.predict(uid, np.arange(len(item_map)))
-    df_score = pd.DataFrame({
-        "product_code": list(item_map.values()),
-        "score": scores
-    }).merge(meta, on="product_code", how="left")
-
-    seen = set(df_user["product_code"])
-    df_score = df_score[~df_score["product_code"].isin(seen)]
-    top = df_score.nlargest(top_k, "score")["product_code"].tolist()
-
-    return RecommendationResponse(
-        tracking_key=tracking_key,
-        recommended_items=top
-    )
-
-
-"""
-import os
-import numpy as np
-import pandas as pd
-import logging
-from fastapi import HTTPException
-from core.data_loader.clickhouse import (
-    load_clickhouse_events,
-    load_clickhouse_item_metadata
-)
-from core.model.lightfm_trainer import load_latest_model
-from app.utils.model_utils import find_latest_version_dir
-from app.schemas.recommendation import RecommendationResponse
-
-logger = logging.getLogger(__name__)
-
-def get_recommendations(tracking_key: str, top_k: int) -> RecommendationResponse:
-    #사이트 전체 이벤트로부터 인기 상품 top_k 리스트를 반환합니다.
-    df = load_clickhouse_events(tracking_filter=tracking_key)
-    if df is None or df.empty:
-        logger.info("No events for site %s, returning empty list", tracking_key)
-        return RecommendationResponse(
-            tracking_key=tracking_key,
-            recommended_items=[]
-        )
-
-    counts = df["product_code"].value_counts()
-    top_items = counts.head(top_k).index.tolist()
-    logger.info("Top %d popular items for site %s: %s", top_k, tracking_key, top_items)
-
-    return RecommendationResponse(
-        tracking_key=tracking_key,
-        recommended_items=top_items
-    )
-
-
-def get_interest_based_recommendations(
-    tracking_key: str,
-    anon_id: str,
-    lang: str,
-    top_k: int
-) -> RecommendationResponse:
-    # 사용자별 이벤트와 관심 카테고리, 언어별 학습된 모델을 이용해 추천 목록을 반환합니다.
-    df = load_clickhouse_events(tracking_filter=tracking_key)
-    if df is None or df.empty:
-        logger.info("No events for site %s, returning empty list", tracking_key)
-        return RecommendationResponse(
-            tracking_key=tracking_key,
-            recommended_items=[]
-        )
-
-    if "common_page_language" in df.columns:
-        df = df[df["common_page_language"] == lang]
-
-    df_user = df[df["anon_id"] == anon_id]
-    if df_user.empty:
-        return get_recommendations(tracking_key, top_k)
-
-    meta = load_clickhouse_item_metadata(tracking_filter=tracking_key)
-    df_user = df_user.merge(meta, left_on="product_code", right_on="item_id", how="left")
-
-    if "category_1" in df_user.columns:
-        cat_col = "category_1"
-    elif "category" in df_user.columns:
-        cat_col = "category"
-    else:
-        raise HTTPException(status_code=500, detail="Category column not found in metadata")
-
-    top_categories = (
-        df_user[cat_col]
-        .value_counts()
-        .nlargest(3)
-        .index
-        .tolist()
-    )
-
-    # 4) 언어별 모델 버전 디렉터리 찾기
-    base_dir = os.getenv("MODEL_BASE_DIR", "/app/models")
+    # 2) 모델·맵·메타 로드 (LRU 캐시)
     try:
-        version_dir = find_latest_version_dir(
-            site_id=tracking_key,
-            lang=lang,
-            base_dir=base_dir
-        )
+        model, user_map, item_map, item_meta = _load_model_cached(model_dir)
     except FileNotFoundError as e:
-        logger.warning("Model directory not found: %s", e)
-        return get_recommendations(tracking_key, top_k)
+        logger.error(f"모델 파일 로드 실패: {e} → 인기추천 폴백")
+        return get_recommendations(tracking_key, anon_id, lang, top_k)
 
-    # 5) 최신 모델 로드
-    model, user_map, item_map = load_latest_model(version_dir)
-
+    # 3) 사용자 존재 여부 체크
     if anon_id not in user_map:
-        raise HTTPException(status_code=404, detail=f"User {anon_id} not in model for lang {lang}")
+        logger.info(f"{anon_id} 모델에 없음 → 인기추천 폴백")
+        return get_recommendations(tracking_key, anon_id, lang, top_k)
 
-    user_idx = user_map[anon_id]
-    n_items = len(item_map)
+    # 4) 예측: scores 계산
+    uid = user_map[anon_id]
+    ids = np.arange(len(item_map))
+    scores = model.predict(uid, ids)
 
-    scores = model.predict(user_idx, np.arange(n_items))
-    df_scores = pd.DataFrame({
-        "item_id": list(item_map.values()),
-        "score": scores
-    }).merge(meta, on="item_id", how="left")
+    # 5) 상위 k개 인덱스 추출
+    k = min(top_k, scores.size)
+    top_idxs = np.argpartition(-scores, k - 1)[:k]
+    top_idxs = top_idxs[np.argsort(-scores[top_idxs])]
 
-    viewed = set(df_user["product_code"])
-    df_filtered = df_scores[
-        df_scores[cat_col].isin(top_categories) &
-        (~df_scores["item_id"].isin(viewed))
+    # 6) 인덱스 → 상품코드
+    rec_codes = [
+        item_map[int(idx)]
+        for idx in top_idxs
+        if int(idx) in item_map
     ]
+    logger.info(f"추천된 상품 코드: {rec_codes}")
 
-    top_items = df_filtered.nlargest(top_k, "score")["item_id"].tolist()
+    # 7) RecommendationItem 생성 (item_meta에서 바로 가져오기)
+    items: list[RecommendationItem] = []
+    for code in rec_codes:
+        meta = item_meta.get(code)
+        if not meta:
+            logger.warning(f"메타없음: {code} (skip)")
+            continue
+        items.append(
+            RecommendationItem(
+                anon_id=anon_id,
+                product_code=code,
+                **meta
+            )
+        )
+
+    # 8) 부족분은 인기추천으로 채우기
+    if len(items) < top_k:
+        pop_items = get_recommendations(tracking_key, anon_id, lang, top_k).recommended_items
+        fill = [
+            i for i in pop_items
+            if i.product_code not in rec_codes
+        ]
+        items.extend(fill[: top_k - len(items)])
+
+    # 9) 최종 반환
     return RecommendationResponse(
         tracking_key=tracking_key,
-        recommended_items=top_items
+        anon_id=anon_id,
+        recommended_items=items
     )
-"""

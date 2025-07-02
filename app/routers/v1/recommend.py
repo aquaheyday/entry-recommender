@@ -4,43 +4,24 @@ from app.services.recommender import (
     get_recommendations,
     get_interest_based_recommendations,
 )
-
+import logging
 router = APIRouter(
     prefix="/v1",
     tags=["Recommendations"]
 )
 
+logger = logging.getLogger(__name__)
 
-@router.get(
-    "/recommendations",
-    response_model=RecommendationResponse,
-)
-def recommendations(
-    tracking_key: str = Query(..., description="트래킹 key"),
-    anon_id: str = Query(..., description="익명 사용자 ID"),
-    lang: str = Query("und", description="언어 코드 (예: ko, en)"),
-    top_k: int = Query(10, ge=1, le=100, description="추천 개수")
+@router.get("/recommendations", response_model=RecommendationResponse)
+def recommend(
+    tracking_key: str = Query(...),
+    anon_id: str = Query(...),
+    lang: str = Query("und"),
+    top_k: int = Query(10, ge=1, le=100),
 ):
     try:
-        # 히스토리 있는 유저 → 관심 기반, 없으면 인기
+        # 관심 기반 추천
         return get_interest_based_recommendations(tracking_key, anon_id, lang, top_k)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 1) 사용자 별 관심 기반 추천 (쿼리파라미터 방식)
-"""
-@router.get(
-    "/recommendations",
-    response_model=RecommendationResponse,
-)
-def get_user_interest_recommendations(
-    tracking_key: str = Query(..., description="트래킹 key"),
-    anon_id: str = Query(..., description="사용자 ID"),
-    lang: str = Query("und", description="언어 코드 (예: ko, en)"),
-    top_k: int = Query(10, ge=1, le=100, description="조회할 추천 개수")
-):
-    try:
-        return get_interest_based_recommendations(tracking_key, anon_id, lang, top_k)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-"""
+        # 폴백: 인기 추천
+        return get_recommendations(tracking_key, anon_id, top_k)

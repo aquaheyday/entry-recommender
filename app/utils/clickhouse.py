@@ -14,8 +14,8 @@ def load_clickhouse_events(site_filter: str = None) -> pd.DataFrame:
     )
     query = f"""
     SELECT anon_id, product_code, tracking_type
-      FROM tracking.trackings
-     WHERE common_ts >= now() - INTERVAL 30 DAY
+    FROM tracking.trackings
+    WHERE common_ts >= now() - INTERVAL 30 DAY
     """
     if site_filter:
         query += f" AND site_id = {safe_quote(site_filter)}"
