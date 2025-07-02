@@ -25,6 +25,8 @@ class RecommendationItem(BaseModel):
     product_category_2_name: str
     product_category_3_code: str
     product_category_3_name: str
+    site_domain: str
+    protocol: str
 
 class RecommendationResponse(BaseModel):
     tracking_key: str

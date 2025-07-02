@@ -58,7 +58,9 @@ def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
       product_category_3_code,
       product_category_3_name,
       tracking_type,
-      common_page_language
+      common_page_language,
+      common_site_domain,
+      common_protocol
     FROM tracking.trackings
     WHERE common_ts >= now() - INTERVAL 30 DAY
     AND product_code IS NOT NULL
@@ -86,7 +88,9 @@ def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
             'product_category_3_code',
             'product_category_3_name',
             'tracking_type',
-            'common_page_language'
+            'common_page_language',
+            'common_site_domain',
+            'common_protocol'
         ]
     )
 
@@ -183,6 +187,8 @@ def load_item_metadata_full(
         anyHeavy(product_category_3_code)           AS product_category_3_code,
         anyHeavy(product_category_3_name)           AS product_category_3_name,
         anyHeavy(tracking_type)                     AS tracking_type
+        anyHeavy(common_site_domain)                AS site_domain,
+        anyHeavy(common_protocol)                AS protocol,
     FROM tracking.trackings
     WHERE tracking_key = '{sf}'
     AND product_code IS NOT NULL
@@ -214,6 +220,8 @@ def load_item_metadata_full(
             'product_category_2_name',
             'product_category_3_code',
             'product_category_3_name',
-            'tracking_type'
+            'tracking_type',
+            'site_domain',
+            'protocol',
         ]
     )

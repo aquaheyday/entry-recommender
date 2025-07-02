@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from core.model.lightfm_trainer import load_latest_model
 from app.utils.model_utils import find_latest_version_dir
 from app.schemas.recommendation import RecommendationResponse, RecommendationItem
-from core.data_loader.clickhouse import load_popular_items, load_clickhouse_item_metadata, load_item_metadata_full
+from core.data_loader.clickhouse import load_popular_items, load_item_metadata_full
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,8 @@ def get_recommendations(
                 product_category_3_name=meta["product_category_3_name"],
                 tracking_type=meta.get("tracking_type", ""),
                 common_page_language=meta.get("common_page_language", ""),
+                site_domain=meta["site_domain"],
+                protocol=meta["protocol"],
             )
         )
 
