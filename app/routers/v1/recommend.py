@@ -24,4 +24,4 @@ def recommend(
         return get_interest_based_recommendations(tracking_key, anon_id, lang, top_k)
     except Exception as e:
         # 폴백: 인기 추천
-        return get_recommendations(tracking_key, anon_id, top_k)
+        return get_recommendations(tracking_key, anon_id, lang, top_k)
