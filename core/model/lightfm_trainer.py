@@ -8,11 +8,13 @@ logger = logging.getLogger(__name__)
 
 def train_model(matrix):
     model = LightFM(no_components=30, learning_rate=0.05, loss='warp')
+    # COO 포맷으로 변환
+    interactions = matrix.tocoo()
+    sample_weight = matrix.tocoo()
 
-    # interactions 와 sample_weight 에 모두 cnt 기반 매트릭스를 넘깁니다.
     model.fit(
-        interactions=matrix,
-        sample_weight=matrix,   # ← 여기가 추가된 부분
+        interactions=interactions,
+        sample_weight=sample_weight,
         epochs=10,
         num_threads=4,
     )
