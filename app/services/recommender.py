@@ -24,7 +24,7 @@ def _load_full_meta_cached(tracking_key: str, lang: str | None = None) -> dict[s
     ClickHouse에서 tracking_key에 대한 전체 item metadata를 불러와
     {product_code: {...메타...}} 형태로 반환합니다.
     """
-    df = load_item_metadata_full(tracking_key, lang)
+    df = load_item_metadata_full(tracking_key, lang=lang)
     df = df.fillna("")  # NaN 방지
     return df.set_index("product_code").to_dict(orient="index")
 
@@ -40,7 +40,7 @@ def get_recommendations(
     logger.info("✔️ 인기 상품 추천 로직 실행")
 
     # 1) 인기 순위 조회 (product_code 리스트)
-    df_pop = load_popular_items(tracking_key, top_k=top_k)
+    df_pop = load_popular_items(tracking_key, top_k=top_k, lang=lang)
     codes: List[str] = df_pop["product_code"].tolist()
 
     # 2) 전체 메타 딕셔너리 (cached)

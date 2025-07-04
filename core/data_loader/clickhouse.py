@@ -5,7 +5,8 @@ from clickhouse_driver import Client
 def load_popular_items(
     tracking_filter: str,
     top_k: int = 10,
-    days: int = 30
+    days: int = 30,
+    lang: str = 'und'
 ) -> pd.DataFrame:
     """
     tracking_key 별로 최근 days일간 product_code별 카운트를 집계,
@@ -27,6 +28,7 @@ def load_popular_items(
     AND tracking_key = '{sf}'
     AND product_code IS NOT NULL
     AND product_code != ''
+    AND common_page_language = '{lang}'
     GROUP BY product_code
     ORDER BY cnt DESC
     LIMIT {top_k}
@@ -168,6 +170,7 @@ def load_clickhouse_item_metadata(tracking_filter: str) -> pd.DataFrame:
 
 def load_item_metadata_full(
     tracking_key: str,
+    day: int = 30,
     lang: str | None = None
 ) -> pd.DataFrame:
     client = Client(host='clickhouse', port=9000, database='tracking')
@@ -195,7 +198,8 @@ def load_item_metadata_full(
     WHERE tracking_key = '{sf}'
     AND product_code IS NOT NULL
     AND product_code != ''
-    AND common_ts >= now() - INTERVAL 30 DAY
+    AND common_page_language = '{lang}'
+    AND common_ts >= now() - INTERVAL {day} DAY
     """
 
     # raw 컬럼(common_page_language) 로 필터를 걸어 줍니다
