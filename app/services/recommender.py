@@ -40,7 +40,7 @@ def get_recommendations(
     logger.info("✔️ 인기 상품 추천 로직 실행")
 
     # 1) 인기 순위 조회 (product_code 리스트)
-    df_pop = load_popular_items(tracking_key, top_k=top_k, lang=lang)
+    df_pop = get_model_popular_items(tracking_key, top_k=top_k, lang=lang)
     codes: List[str] = df_pop["product_code"].tolist()
 
     # 2) 전체 메타 딕셔너리 (cached)
@@ -160,5 +160,46 @@ def get_interest_based_recommendations(
     return RecommendationResponse(
         tracking_key=tracking_key,
         anon_id=anon_id,
+        recommended_items=items
+    )
+
+def get_model_popular_items(
+    tracking_key: str,
+    lang: str = "und",
+    top_k: int = 10
+) -> RecommendationResponse:
+    """
+    LightFM 모델의 item_bias를 이용한 전역 인기 순위(top_k) 조회.
+    """
+    # 1) 최신 모델 디렉터리 찾기
+    base = os.getenv("MODEL_BASE_DIR", "/app/models")
+    try:
+        model_dir = find_latest_version_dir(tracking_key, lang, base)
+    except FileNotFoundError:
+        raise HTTPException(404, "모델을 찾을 수 없습니다.")
+
+    # 2) 모델·맵·메타 로드
+    model, user_map, item_map, item_meta = _load_model_cached(model_dir)
+
+    # 3) bias 배열에서 상위 top_k 인덱스 추출
+    biases: np.ndarray = model.item_biases  # shape = (num_items,)
+    k = min(top_k, biases.size)
+    top_idxs = np.argpartition(-biases, k - 1)[:k]
+    top_idxs = top_idxs[np.argsort(-biases[top_idxs])]
+
+    # 4) 인덱스 → product_code
+    codes = [item_map[idx] for idx in top_idxs]
+
+    # 5) RecommendationItem 생성
+    items = []
+    for code in codes:
+        meta = item_meta.get(code)
+        if not meta:
+            continue
+        items.append(RecommendationItem(anon_id="", product_code=code, **meta))
+
+    return RecommendationResponse(
+        tracking_key=tracking_key,
+        anon_id="",  # 글로벌 인기엔 사용자 ID 불필요
         recommended_items=items
     )
