@@ -76,6 +76,24 @@ def train_models_for_site(tracking_key: str) -> dict:
         if group_df.empty:
             continue
 
+        # ▶ 언어별 메타만 뽑아서 정렬·중복제거
+        lang_meta_df = (
+            group_df
+            .sort_values(['product_code', 'common_ts'], ascending=[True, False])
+            .drop_duplicates(subset=["product_code"], keep='first')
+        )
+        lang_meta_dict = lang_meta_df.set_index("product_code")[
+            [
+                "product_name", "product_price", "product_dc_price",
+                "product_sold_out", "product_image_url", "product_brand",
+                "product_category_1_code", "product_category_1_name",
+                "product_category_2_code", "product_category_2_name",
+                "product_category_3_code", "product_category_3_name",
+                "tracking_type", "common_page_language",
+                "common_site_domain", "common_protocol"
+            ]
+        ].fillna("").to_dict(orient="index")
+
         # 2-1) interaction matrix 변환
         matrix, user_map, item_map = transform_interaction_matrix(group_df)
 
@@ -98,9 +116,9 @@ def train_models_for_site(tracking_key: str) -> dict:
 
         # 2-5) 메타 저장 (item_map에 있는 코드만 필터)
         filtered_meta = {
-            code: meta_dict[code]
+            code: lang_meta_dict[code]
             for code in item_map.keys()
-            if code in meta_dict
+            if code in lang_meta_dict
         }
         _save(filtered_meta, "item_meta.pkl")
 
