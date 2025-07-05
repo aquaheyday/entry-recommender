@@ -28,54 +28,53 @@ def _load_full_meta_cached(tracking_key: str, lang: str | None = None) -> dict[s
     df = df.fillna("")  # NaN 방지
     return df.set_index("product_code").to_dict(orient="index")
 
+def fetch_popular_codes(
+    tracking_key: str,
+    lang: str = "und",
+    top_k: int = 10,
+    use_model: bool = True
+) -> list[str]:
+    """
+    use_model=True 이면 LightFM 모델의 item_bias로 뽑고,
+    아니면 ClickHouse 집계로 뽑아서 항상 List[str] 반환.
+    """
+    if use_model:
+        # 모델 기반 인기
+        resp = get_model_popular_items(tracking_key, lang, top_k)
+        return [item.product_code for item in resp.recommended_items]
+
+    # ClickHouse 집계 기반 인기
+    df = load_popular_items(tracking_key, top_k=top_k, lang=lang)
+    return df["product_code"].tolist()
+
 def get_recommendations(
     tracking_key: str,
     anon_id: str,
     lang: str = "und",
-    top_k: int = 10
+    top_k: int = 10,
+    use_model_popular: bool = True
 ) -> RecommendationResponse:
-    """
-    인기 상품 추천 (ClickHouse 집계 + cached 메타 조회)
-    """
     logger.info("✔️ 인기 상품 추천 로직 실행")
 
-    # 1) 인기 순위 조회 (product_code 리스트)
-    df_pop = get_model_popular_items(tracking_key, top_k=top_k, lang=lang)
-    codes: List[str] = df_pop["product_code"].tolist()
+    # 1) 인기 코드 조회 (항상 List[str])
+    codes = fetch_popular_codes(
+        tracking_key,
+        lang=lang,
+        top_k=top_k,
+        use_model=use_model_popular
+    )
 
-    # 2) 전체 메타 딕셔너리 (cached)
+    # 2) 전체 메타 딕셔너리 (기존 캐시)
     full_meta = _load_full_meta_cached(tracking_key, lang)
 
     # 3) RecommendationItem 생성
-    items: List[RecommendationItem] = []
+    items: list[RecommendationItem] = []
     for code in codes:
         meta = full_meta.get(code)
         if not meta:
             logger.warning(f"인기추천 메타 없음: {code}")
             continue
-
-        items.append(
-            RecommendationItem(
-                anon_id=anon_id,
-                product_code=code,
-                product_name=meta["product_name"],
-                product_price=meta["product_price"],
-                product_dc_price=meta["product_dc_price"],
-                product_sold_out=meta["product_sold_out"],
-                product_image_url=meta["product_image_url"],
-                product_brand=meta["product_brand"],
-                product_category_1_code=meta["product_category_1_code"],
-                product_category_1_name=meta["product_category_1_name"],
-                product_category_2_code=meta["product_category_2_code"],
-                product_category_2_name=meta["product_category_2_name"],
-                product_category_3_code=meta["product_category_3_code"],
-                product_category_3_name=meta["product_category_3_name"],
-                tracking_type=meta.get("tracking_type", ""),
-                common_page_language=meta.get("common_page_language", ""),
-                common_site_domain=meta["common_site_domain"],
-                common_protocol=meta["common_protocol"],
-            )
-        )
+        items.append(RecommendationItem(anon_id=anon_id, product_code=code, **meta))
 
     return RecommendationResponse(
         tracking_key=tracking_key,
