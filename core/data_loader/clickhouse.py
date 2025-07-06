@@ -59,6 +59,7 @@ def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
       product_category_2_name,
       product_category_3_code,
       product_category_3_name,
+      product_url,
       tracking_type,
       common_page_language,
       common_site_domain,
@@ -90,6 +91,7 @@ def load_clickhouse_events(tracking_filter: str = None) -> pd.DataFrame:
             'product_category_2_name',
             'product_category_3_code',
             'product_category_3_name',
+            'product_url',
             'tracking_type',
             'common_page_language',
             'common_site_domain',
@@ -126,6 +128,7 @@ def load_clickhouse_item_metadata(tracking_filter: str) -> pd.DataFrame:
       anyHeavy(product_category_2_name)            AS product_category_2_name,
       anyHeavy(product_category_3_code)            AS product_category_3_code,
       anyHeavy(product_category_3_name)            AS product_category_3_name,
+      anyHeavy(product_url)                        AS product_url,
     FROM tracking.trackings
     WHERE tracking_key = '{sf}'
     AND product_code IS NOT NULL
@@ -148,6 +151,7 @@ def load_clickhouse_item_metadata(tracking_filter: str) -> pd.DataFrame:
             'product_category_2_name',
             'product_category_3_code',
             'product_category_3_name',
+            'product_url',
         ])
     except Exception as e:
         # logger.error로 바꿔주세요
@@ -166,6 +170,7 @@ def load_clickhouse_item_metadata(tracking_filter: str) -> pd.DataFrame:
             'product_category_2_name',
             'product_category_3_code',
             'product_category_3_name',
+            'product_url',
         ])
 
 def load_item_metadata_full(
@@ -191,6 +196,7 @@ def load_item_metadata_full(
         anyHeavy(product_category_2_name)           AS product_category_2_name,
         anyHeavy(product_category_3_code)           AS product_category_3_code,
         anyHeavy(product_category_3_name)           AS product_category_3_name,
+        anyHeavy(product_url)                       AS product_url,
         anyHeavy(tracking_type)                     AS tracking_type,
         anyHeavy(common_site_domain)                AS common_site_domain,
         anyHeavy(common_protocol)                   AS common_protocol
@@ -226,6 +232,7 @@ def load_item_metadata_full(
             'product_category_2_name',
             'product_category_3_code',
             'product_category_3_name',
+            'product_url',
             'tracking_type',
             'common_site_domain',
             'common_protocol',
