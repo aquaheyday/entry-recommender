@@ -124,7 +124,7 @@ def load_clickhouse_item_metadata(tracking_filter: str) -> pd.DataFrame:
       anyHeavy(product_category_2_name)            AS product_category_2_name,
       anyHeavy(product_category_3_code)            AS product_category_3_code,
       anyHeavy(product_category_3_name)            AS product_category_3_name,
-      anyHeavy(product_url)                        AS product_url,
+      anyHeavy(product_url)                        AS product_url
     FROM tracking.trackings
     WHERE tracking_key = '{sf}'
     AND product_code IS NOT NULL
@@ -193,7 +193,7 @@ def load_item_metadata_full(
         anyHeavy(product_category_3_code)           AS product_category_3_code,
         anyHeavy(product_category_3_name)           AS product_category_3_name,
         anyHeavy(product_url)                       AS product_url,
-        anyHeavy(tracking_type)                     AS tracking_type,
+        anyHeavy(tracking_type)                     AS tracking_type
     FROM tracking.trackings
     WHERE tracking_key = '{sf}'
     AND product_code IS NOT NULL
