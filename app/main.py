@@ -3,7 +3,7 @@ from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI
 from app.config import settings
 from app.lifecycle import on_startup, on_shutdown
-from app.routers.v1 import recommend, train
+from app.routers.v1 import recommend, train, topK
 from fastapi.middleware.cors import CORSMiddleware
 
 # 로깅 설정 (생략 가능)
@@ -32,3 +32,4 @@ app.add_middleware(
 # 모델별 라우터 포함
 app.include_router(train.router)
 app.include_router(recommend.router)
+app.include_router(topK.router)
