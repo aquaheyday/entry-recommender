@@ -25,8 +25,6 @@ class TopKItem(BaseModel):
     product_category_3_code: str
     product_category_3_name: str
     product_url: str
-    common_site_domain: str
-    common_protocol: str
 
 class TopKResponse(BaseModel):
     tracking_key: str

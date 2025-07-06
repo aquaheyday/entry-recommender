@@ -64,8 +64,6 @@ def train_models_for_site(tracking_key: str) -> dict:
                 "product_url",
                 "tracking_type",
                 "common_page_language",
-                "common_site_domain",
-                "common_protocol"
             ]
         ]
         .fillna("")  # NaN 방지
@@ -92,7 +90,6 @@ def train_models_for_site(tracking_key: str) -> dict:
                 "product_category_3_code", "product_category_3_name",
                 "product_url",
                 "tracking_type", "common_page_language",
-                "common_site_domain", "common_protocol"
             ]
         ].fillna("").to_dict(orient="index")
 
